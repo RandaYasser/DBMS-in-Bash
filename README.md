@@ -43,7 +43,10 @@ This project is a Bash script-based **Database Management System (DBMS)**. It al
 1. Clone or copy the script to your system.
 2. Make the script executable:
    ```bash
-   chmod +x dbms_script.sh
+   chmod +x dbms.sh
+3. Run the script
+   ```bash
+   . dbms_script.sh
 
 ---
 
