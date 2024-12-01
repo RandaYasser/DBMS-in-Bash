@@ -46,7 +46,7 @@ This project is a Bash script-based **Database Management System (DBMS)**. It al
    chmod +x dbms.sh
 3. Run the script
    ```bash
-   . dbms_script.sh
+   . dbms.sh
 
 ---
 
