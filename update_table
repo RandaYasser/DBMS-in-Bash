@@ -1,0 +1,173 @@
+#! /usr/bin/bash
+
+####1-Lists all files (tables) in the database directory to make him chose ######
+echo "Here the avilable tables in $dbName"
+ls ~/DBMS/$dbName/
+
+
+
+
+PS3="Please choose an option [1-2]: "   
+
+### 5- LIST TO MAKE HIM CHOSE THE METHOD OF UPDATING (pk/value)
+    select option in "Update" "Exit" ; do
+        case $option in
+            "Update")
+               valid=1
+	##### 2- entre table and check if it's in DBMS
+	read -p "Enter the name of the table to update: " tName
+
+
+	#### 3- created variables to hold the baths of table / metadata
+	
+	meta_path=".meta$tName"
+	table_path=~/DBMS/$dbName/$tName
+	
+
+	### 4- checked if the path exist 
+	if [ -f "$table_path" ]; then
+
+ ######### (1) Identifies the column to search for the specific value ########
+        read -p "Enter the column name to search by: " search_col
+        
+### 16 - Find the column index for the search column
+        search_col_index=$(awk -v col="$search_col" -F: '
+        NR == 1 {
+            for (i = 1; i <= NF; i++) {
+                if ($i == col) {
+                    print i
+                    exit
+                }
+            }
+        }
+        ' "$table_path")
+    
+### 17 - Check if the column exists
+        if  [[ -z $search_col_index ]]; then
+            echo "Column '$search_col' not found."
+            valid=0
+            else
+        
+
+ ######### (2) Enter the value to search for ########################
+        read -p "Enter the value to search for: " search_value
+
+### 18 - Find the row number matching the search condition
+        row_number=$(awk -v col="$search_col_index" -v val="$search_value" -F: '
+        $col == val { print NR }
+        ' "$table_path")
+
+### 19- Validate if a matching row exists
+        if [[ -z $row_number ]]; then
+            echo "No rows found where '$search_col' equals '$search_value'."
+            valid=0
+        else
+
+#### the update a specific column in the matching row ###
+
+ ################# (3) Enter the column name to update ####################
+        read -p "Enter the column name to update: " update_col
+
+### 20- Find the column index for the column to update
+        update_col_index=$(awk -v col="$update_col" -F: '
+        NR == 1 {
+            for (i = 1; i <= NF; i++) {
+                if ($i == col) {
+                    print i
+                    exit
+                }
+            }
+        }
+        ' "$table_path")
+
+### 21- Check if the column exists
+        if [[ -z $update_col_index ]]; then
+            echo "Column '$update_col' not found."
+            valid=0
+        else
+
+####################### (4) Enter the new value ################################
+        read -p "Enter the new value: " new_value
+
+############################# Data Validation ###
+        col_type=$(grep -E "^$search_col:" "$meta_path" | cut -d: -f2)
+        pk_flag=$(grep -E "^$search_col:" "$meta_path" | cut -d: -f3)
+	valid=1
+########################### Validating primary key #########################
+	if [[ $pk_flag == PK ]]; then # check pk constraint
+		validpk=$(grep -E "^$new_value" "$table_path" | cut -d: -f1)  # check if there's a row starts with the first value entered (in pk col)
+	
+	  if [[ -z $validpk || -z $new_value ]] ; then 	
+		
+		if [[ "$col_type" = "str" ]]; then
+		    if ! [[ "$new_value" =~ ^[a-zA-Z0-9]+$ ]]; then
+		     
+			echo  "Error: You should enter a non-empty unique value for column $update_col(PK)"
+			valid=0
+						
+			fi
+		elif [[ "$col_type" = "num" ]]; then
+		    if ! [[ "$new_value" =~ ^[0-9]+$ ]]; then
+		         echo "Error: column $update_col type is $col_type! You must enter a unique numeric value"
+			valid=0
+		    fi
+		fi
+	
+	else 
+		echo "$new_value already exists in $update_col, voilating primary key constraint!"
+		valid=0
+
+	fi
+	
+#######################validating other columns#############################
+	else
+	if [[ "$col_type" = "str" ]]; then
+		if [[ -z "$new_value" ]]; then
+		     
+			echo  "Error: You should enter a non-empty string value for column $update_col"
+			valid=0
+						
+			fi
+		elif [[ "$col_type" = "num" ]]; then
+		    if ! [[ "$new_value" =~ ^[0-9]+$ ]]; then
+		         echo "Error: column $update_col type is number! You must enter a numeric value"
+			valid=0
+		    fi
+		fi
+fi
+fi
+fi
+fi
+##################### Perform the update #################################
+
+if [[ $valid -eq 1 ]];then 
+	echo "Validation passed. Proceeding with update..."
+        awk -v row="$row_number" -v col="$update_col_index" -v new_val="$new_value" -F':' -v OFS=':' '
+        NR == row { $col = new_val } { print $0 }
+        ' "$table_path" > tmp && mv tmp "$table_path"
+
+        echo "Row updated successfully."
+      	fi	  
+          	  
+      else
+    echo "Table $tName does not exist."
+    
+fi        
+;;
+############################################################################################################################################
+
+
+### 14- the exit option 
+            "Exit")
+            echo "Exiting update menu.." 
+            break
+            ;;
+
+  	
+            *)
+                echo "Invalid option. Please try again."
+                ;;
+        esac
+    done
+
+
